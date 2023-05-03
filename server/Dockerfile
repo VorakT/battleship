@@ -4,4 +4,4 @@ COPY . .
 RUN pip install -r requirements.txt
 
 EXPOSE 8123
-CMD ["/Server.py"]
+CMD ["python3", "/Server.py"]
