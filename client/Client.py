@@ -29,6 +29,7 @@ class ClientProtocol(LineReceiver):
         pass
 
     def connectionLost(self, reason):
+        reactor.stop()
         sys.exit()
 
     def send_query(self, type, data=None):

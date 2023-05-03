@@ -4,3 +4,4 @@ get_interface_messages = ['Type interface variant: \"console\" or \"visual\"',
                           'Incorrect variant.\nType \"console\" or \"visual\"']
 console_answer = 'console'
 visual_answer = 'visual'
+ip_address = "194.67.97.108"

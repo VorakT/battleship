@@ -146,13 +146,13 @@ class VisualInterface(UserInterface):
                 self.loop = LoopingCall(self.draw_board_while_opponent_turn)
                 self.loop.start(1.0 / FPS)
 
-    def draw_board_while_shooting(self, user):
+    def draw_board_while_shooting(self):
         tile_width = WIDTH / self.field_size
         tile_height = HEIGHT / self.field_size
         self.screen.fill((188, 188, 188))
-        for x, y in self.misses[user]:
+        for x, y in self.misses[0]:
             self.screen.blit(self.water_tile, (x * tile_width, y * tile_height))
-        for x, y in self.shots[user]:
+        for x, y in self.shots[0]:
             self.screen.blit(self.fire_tile, (x * tile_width, y * tile_height))
         # for x, y in self.sunk_ships[user]:
         # pygame.draw.rect(self.screen, THECOLORS['purple'], (x * tile_width, y * tile_height, tile_width, tile_height))
@@ -161,37 +161,38 @@ class VisualInterface(UserInterface):
             pygame.draw.line(self.screen, THECOLORS['black'], (x * tile_width - 1, 0), (x * tile_width - 1, HEIGHT), 2)
         for y in range(1, self.field_size):
             pygame.draw.line(self.screen, THECOLORS['black'], (0, y * tile_height - 1), (WIDTH, y * tile_height - 1), 2)
+        pygame.display.flip()
 
     def get_shot_coordinate(self):
         while True:
             self.clock.tick(FPS)
-            self.draw_board_while_shooting(0)
+            self.draw_board_while_shooting()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     square = self.get_pressed_square()
                     return square
-            pygame.display.flip()
 
     def incorrect_shot(self, error):
         print(error)
 
-    def show_board(self, user, seconds):
+    def show_board(self, seconds, show_function):
         frames = 0
         while frames < seconds * FPS:
             self.clock.tick(FPS)
-            self.draw_board_while_shooting(user)
+            show_function()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
             frames += 1
-            pygame.display.flip()
 
     def set_miss(self, user, square):
         self.misses[user].append(square)
         if user == 0:
-            self.show_board(user, 1.5)
+            self.show_board(1.5, self.draw_board_while_shooting)
+        else:
+            self.show_board(1.5, self.draw_board_while_opponent_turn)
 
     def set_shot(self, user, square):
         self.shots[user].append(square)
@@ -205,7 +206,7 @@ class VisualInterface(UserInterface):
 
     def end_session(self, won):
         if won == 0:
-            self.show_board(won, 1.5)
+            self.show_board(1.5, self.draw_board_while_shooting)
             self.message(messages['end_message_0'], 2)
         else:
             self.message(messages['end_message_1'], 2)
