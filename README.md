@@ -12,7 +12,9 @@ git checkout dev
 
 cd client
 
-./run.sh
+./Client.py
+
+Для запуска нужны python 3.10 и библиотеки из requirements.
 
 ---
 

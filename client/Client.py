@@ -4,20 +4,10 @@ from twisted.internet import reactor
 import pickle
 from Query import Query
 from Interfaces.VisualInterface import VisualInterface
-from config import get_interface_messages, console_answer, visual_answer, field_size, ip_address
-import sys
+from config import field_size, ip_address
 
 
 def get_interface_type():
-    # print(get_interface_messages[0])
-    # result = input()
-    # while result != console_answer and result != visual_answer:
-    #     print(get_interface_messages[1])
-    #     result = input()
-    # if result == console_answer:
-    #     return ConsoleInterface
-    # else:
-    #     return VisualInterface
     return VisualInterface
 
 
@@ -29,8 +19,8 @@ class ClientProtocol(LineReceiver):
         pass
 
     def connectionLost(self, reason):
-        reactor.stop()
-        sys.exit()
+        if reactor.running:
+            reactor.stop()
 
     def send_query(self, type, data=None):
         self.sendLine(pickle.dumps(Query(type, data)))
@@ -59,7 +49,7 @@ class ClientProtocol(LineReceiver):
         elif query.type == 'get_ship_place':
             self.handle_get_ship_place(query.data)
         elif query.type == 'incorrect_ship_placement':
-            self.handle_incorrect_ship_placement(query.data)
+            self.handle_incorrect_ship_placement(*query.data)
         elif query.type == 'place_ship':
             self.handle_place_ship(query.data)
         elif query.type == 'wait_for_opponent':
@@ -133,10 +123,13 @@ class ClientProtocol(LineReceiver):
 
     def handle_get_ship_place(self, type):
         placement = self.interface.get_ship_place(type)
-        self.send_query('set_ship_place', placement)
+        if placement[0] == (-1, -1):
+            reactor.stop()
+        else:
+            self.send_query('set_ship_place', placement)
 
-    def handle_incorrect_ship_placement(self, exc):
-        self.interface.incorrect_ship_placement(exc)
+    def handle_incorrect_ship_placement(self, exc, first_square, second_square):
+        self.interface.incorrect_ship_placement(exc, first_square, second_square)
 
     def handle_place_ship(self, ship):
         self.interface.place_ship(ship)
@@ -149,7 +142,10 @@ class ClientProtocol(LineReceiver):
 
     def handle_get_shot_coordinate(self):
         shot = self.interface.get_shot_coordinate()
-        self.send_query('set_shot_coordinate', shot)
+        if shot == (-1, -1):
+            reactor.stop()
+        else:
+            self.send_query('set_shot_coordinate', shot)
 
     def handle_incorrect_shot(self, exc):
         self.interface.incorrect_shot(exc)

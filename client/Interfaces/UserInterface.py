@@ -11,7 +11,7 @@ class UserInterface:
     def get_ship_place(self, type):
         pass
 
-    def incorrect_ship_placement(self, error):
+    def incorrect_ship_placement(self, error, first_square, second_square):
         pass
 
     def place_ship(self, ship):

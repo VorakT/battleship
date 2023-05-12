@@ -6,9 +6,9 @@ import pygame
 from Interfaces.UserInterface import UserInterface
 from Interfaces.visual_config import WIDTH, HEIGHT, FPS
 from pygame.color import THECOLORS
-import sys
 from Interfaces.console_interface_config import session_messages as messages
 from twisted.internet.task import LoopingCall
+from twisted.internet import reactor
 
 
 class VisualInterface(UserInterface):
@@ -20,6 +20,7 @@ class VisualInterface(UserInterface):
         self.sunk_ships = [[], []]
         self.load_sprites()
         self.loop = None
+        self.wrong_squares = []
 
     def load_sprites(self):
         tile_width = WIDTH / self.field_size
@@ -34,6 +35,9 @@ class VisualInterface(UserInterface):
                                                  (tile_width * 3, tile_height))
         four_tile_ship = pygame.transform.scale(pygame.image.load("sprites/4_tile_ship.png"),
                                                 (tile_width * 4 - 2, tile_height - 2))
+        two_tile_ship.set_colorkey((188, 188, 188))
+        three_tile_ship.set_colorkey((188, 188, 188))
+        four_tile_ship.set_colorkey((188, 188, 188))
         self.ship_surf = {2: two_tile_ship, 3: three_tile_ship, 4: four_tile_ship}
         rotated_two_tile_ship = pygame.transform.scale(pygame.image.load("sprites/2_tile_ship.png"),
                                                        (tile_height * 2, tile_width))
@@ -44,6 +48,9 @@ class VisualInterface(UserInterface):
         rotated_four_tile_ship = pygame.transform.scale(pygame.image.load("sprites/4_tile_ship.png"),
                                                         (tile_height * 4 - 2, tile_width - 2))
         rotated_four_tile_ship = pygame.transform.rotate(rotated_four_tile_ship, 270)
+        rotated_two_tile_ship.set_colorkey((188, 188, 188))
+        rotated_three_tile_ship.set_colorkey((188, 188, 188))
+        rotated_four_tile_ship.set_colorkey((188, 188, 188))
         self.rotated_ship_surf = {2: rotated_two_tile_ship, 3: rotated_three_tile_ship, 4: rotated_four_tile_ship}
 
     def message(self, text, seconds):
@@ -55,9 +62,7 @@ class VisualInterface(UserInterface):
             surf = font.render(text, True, THECOLORS['black'])
             self.screen.blit(surf, (self.screen.get_width() / 2 - surf.get_width() / 2,
                                     self.screen.get_height() / 2 - surf.get_height() / 2))
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
+            pygame.event.pump()
             frames += 1
             pygame.display.flip()
 
@@ -73,12 +78,24 @@ class VisualInterface(UserInterface):
         tile_width = WIDTH / self.field_size
         tile_height = HEIGHT / self.field_size
         self.screen.fill((188, 188, 188))
+        for x, y in self.misses[1]:
+            self.screen.blit(self.water_tile, (x * tile_width, y * tile_height))
+        for x, y in self.shots[1]:
+            self.screen.blit(self.fire_tile, (x * tile_width, y * tile_height))
         for ship in self.placed_ships:
             if ship.horizontal:
                 ship_surf = self.ship_surf[len(ship.coordinates)]
             else:
                 ship_surf = self.rotated_ship_surf[len(ship.coordinates)]
             self.screen.blit(ship_surf, (tile_width * ship.coordinates[0][0], tile_height * ship.coordinates[0][1]))
+        for i in range(len(self.wrong_squares)):
+            (x, y), frames = self.wrong_squares[i]
+            pygame.draw.rect(self.screen, THECOLORS['red'], (tile_width * x, tile_height * y, tile_width, tile_height))
+            self.wrong_squares[i][1] -= 1
+        for i in range(len(self.wrong_squares) - 1, -1, -1):
+            if self.wrong_squares[i][1] == 0:
+                self.wrong_squares.pop(i)
+                i += 1
         for x in range(1, self.field_size):
             pygame.draw.line(self.screen, THECOLORS['black'], (x * tile_width - 1, 0), (x * tile_width - 1, HEIGHT), 2)
         for y in range(1, self.field_size):
@@ -109,7 +126,7 @@ class VisualInterface(UserInterface):
             self.draw_board_while_placing_ships()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    sys.exit()
+                    return (-1, -1), (-1, -1)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                     if mode == 0:
                         ship = ver_ship
@@ -128,8 +145,13 @@ class VisualInterface(UserInterface):
             self.screen.blit(ship, (pos[0] - tile_width / 2, pos[1] - tile_height / 2))
             pygame.display.flip()
 
-    def incorrect_ship_placement(self, error):
+    def incorrect_ship_placement(self, error, first_square, second_square):
         print(error)
+        self.wrong_squares.clear()
+        for i in range(min(first_square[0], second_square[0]), max(first_square[0], second_square[0]) + 1):
+            for j in range(min(first_square[1], second_square[1]), max(first_square[1], second_square[1]) + 1):
+                if 0 <= i < self.field_size and 0 <= j < self.field_size:
+                    self.wrong_squares.append([(i, j), FPS * 2])
 
     def place_ship(self, ship):
         self.placed_ships.append(ship)
@@ -154,9 +176,12 @@ class VisualInterface(UserInterface):
             self.screen.blit(self.water_tile, (x * tile_width, y * tile_height))
         for x, y in self.shots[0]:
             self.screen.blit(self.fire_tile, (x * tile_width, y * tile_height))
-        # for x, y in self.sunk_ships[user]:
-        # pygame.draw.rect(self.screen, THECOLORS['purple'], (x * tile_width, y * tile_height, tile_width, tile_height))
-        # self.screen.blit(cross, (x * tile_width, y * tile_height))
+        for ship in self.sunk_ships[0]:
+            if ship.horizontal:
+                ship_surf = self.ship_surf[len(ship.coordinates)]
+            else:
+                ship_surf = self.rotated_ship_surf[len(ship.coordinates)]
+            self.screen.blit(ship_surf, (tile_width * ship.coordinates[0][0], tile_height * ship.coordinates[0][1]))
         for x in range(1, self.field_size):
             pygame.draw.line(self.screen, THECOLORS['black'], (x * tile_width - 1, 0), (x * tile_width - 1, HEIGHT), 2)
         for y in range(1, self.field_size):
@@ -169,7 +194,7 @@ class VisualInterface(UserInterface):
             self.draw_board_while_shooting()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    sys.exit()
+                    return -1, -1
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     square = self.get_pressed_square()
                     return square
@@ -182,9 +207,7 @@ class VisualInterface(UserInterface):
         while frames < seconds * FPS:
             self.clock.tick(FPS)
             show_function()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
+            pygame.event.pump()
             frames += 1
 
     def set_miss(self, user, square):
@@ -198,8 +221,7 @@ class VisualInterface(UserInterface):
         self.shots[user].append(square)
 
     def set_sunk_ship(self, user, ship):
-        for square in ship.coordinates:
-            self.sunk_ships[user].append(square)
+        self.sunk_ships[user].append(ship)
 
     def end_turn(self, user):
         pass
@@ -221,11 +243,5 @@ class VisualInterface(UserInterface):
 
     def draw_board_while_opponent_turn(self):
         self.draw_board_while_placing_ships()
-        tile_width = WIDTH / self.field_size
-        tile_height = HEIGHT / self.field_size
-        for x, y in self.misses[1]:
-            self.screen.blit(self.water_tile, (x * tile_width, y * tile_height))
-        for x, y in self.shots[1]:
-            self.screen.blit(self.fire_tile, (x * tile_width, y * tile_height))
         pygame.display.flip()
         pygame.event.pump()

@@ -92,7 +92,7 @@ class Session:
         try:
             ship = self.game_data.place_ship(user, structure[self.ships_placed[user]], place[0], place[1])
         except Exception as exc:
-            if not self.sent_one_information(self.protocols[user], 'incorrect_ship_placement', exc):
+            if not self.sent_one_information(self.protocols[user], 'incorrect_ship_placement', (exc, place[0], place[1])):
                 return False
             self.get_ship_place(user)
             return True
